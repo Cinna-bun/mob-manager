@@ -70,6 +70,7 @@ def roll_action():
     for i in range(num_skeletons):
         to_hit = random.randint(1, 20) #+ int(skeleton_stats['bonus_to_hit']) + attack_mods
         if to_hit in crit_range:
+            to_hit += int(skeleton_stats[1]) + attack_mods
             confirm_crit = random.randint(1, 20) + int(skeleton_stats[1]) + attack_mods
             if confirm_crit >= enemy_ac:
                 num_crits += 1
