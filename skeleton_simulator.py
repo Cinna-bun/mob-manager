@@ -2,6 +2,8 @@ import random
 import tkinter as tk
 from tkinter import ttk, messagebox
 
+#TODO ADD A "NUMBER OF FLANKERS" FOR HOW MANY SKELES SHOULD ROLL WITH A FLANK, ADD CRIT MULTIPLIER FIELD
+
 skeletons_info = {}
 
 def get_skeleton_info():
