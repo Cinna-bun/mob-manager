@@ -18,7 +18,8 @@ def get_skeleton_info():
                 bonus_to_damage = parts[2].split(": ")[1]
                 damage_die = parts[3].split(": ")[1]
                 crit_range = parts[4].split(": ")[1]
-                skeletons_info[skeleton_name] = [bonus_to_hit, bonus_to_damage, damage_die, crit_range]
+                crit_multiplier = parts[5].split(": ")[1] if len(parts) > 5 else "2"
+                skeletons_info[skeleton_name] = [bonus_to_hit, bonus_to_damage, damage_die, crit_range, crit_multiplier]
         update_dropdown()
     except FileNotFoundError:
         pass
@@ -48,7 +49,6 @@ def parse_crit_range(crit_string):
             crit_range.append(temp_num)
     return crit_range
 
-
 def roll_action():
     results_text.insert(tk.END, "---------------------------------\n")
     skeleton_stats = skeletons_info[type_var.get()]
@@ -56,26 +56,29 @@ def roll_action():
     attack_mods = int(attack_mods_entry.get())
     damage_mods = int(damage_mods_entry.get())
     enemy_ac = int(enemy_ac_entry.get())
+    num_flankers = int(flankers_entry.get())
     
     num_dice, dice_sides = parse_dice_string(skeleton_stats[2])
-
-    #get the crit ranges, very janky
     crit_range = parse_crit_range(skeleton_stats[3])
+    crit_multiplier = int(skeleton_stats[4])
 
-    #calculate the results
     result_string = ""
     num_hits = 0
     num_crits = 0
     total_damage = 0
+    num_flankers -= 1
     for i in range(num_skeletons):
-        to_hit = random.randint(1, 20) #+ int(skeleton_stats['bonus_to_hit']) + attack_mods
+        flanking = 0
+        if i <= num_flankers:
+            flanking = 2
+        to_hit = random.randint(1, 20)
         if to_hit in crit_range:
-            to_hit += int(skeleton_stats[1]) + attack_mods
-            confirm_crit = random.randint(1, 20) + int(skeleton_stats[1]) + attack_mods
+            to_hit += int(skeleton_stats[0]) + attack_mods + flanking
+            confirm_crit = random.randint(1, 20) + int(skeleton_stats[0]) + attack_mods + flanking
             if confirm_crit >= enemy_ac:
                 num_crits += 1
                 rolls = [random.randint(1, dice_sides) for _ in range(num_dice)]
-                damage = 2 * (sum(rolls) + int(skeleton_stats[1]) + damage_mods)
+                damage = crit_multiplier * (sum(rolls) + int(skeleton_stats[1]) + damage_mods)
                 result_string += f"\nCrit with {to_hit}, dealing {damage} damage"
                 total_damage += damage
             else:
@@ -85,7 +88,7 @@ def roll_action():
                 result_string += f"\nHit with {to_hit}, dealing {damage} damage"
                 total_damage += damage
         else:
-            to_hit += int(skeleton_stats[1]) + attack_mods
+            to_hit += int(skeleton_stats[0]) + attack_mods + flanking
             if to_hit < enemy_ac:
                 continue
             else:
@@ -94,8 +97,11 @@ def roll_action():
                 damage = sum(rolls) + int(skeleton_stats[1]) + damage_mods
                 result_string += f"\nHit with {to_hit}, dealing {damage} damage"
                 total_damage += damage
-                
-    result_string += f"\nTOTALS: {num_hits} HITS, {num_crits} CRITS, {total_damage} DAMAGE\n"
+    
+    if num_hits == 0 and num_crits == 0:
+        result_string += "\nNobody hit!\n"
+    else:
+        result_string += f"\nTOTALS: {num_hits} HITS, {num_crits} CRITS, {total_damage} DAMAGE\n"
     results_text.insert(tk.END, result_string)
 
 def submit_skeleton_info():
@@ -104,8 +110,9 @@ def submit_skeleton_info():
     bonus_to_damage = bonus_to_damage_entry.get()
     damage_die = damage_die_entry.get()
     crit_range = crit_range_entry.get()
+    crit_multiplier = crit_multiplier_entry.get()
     with open("skeleton_info.txt", "a") as file:
-        file.write(f"Skeleton name: {skeleton_name}, Bonus to hit: {bonus_to_hit}, Bonus to damage: {bonus_to_damage}, Damage die: {damage_die}, Crit range: {crit_range}\n")
+        file.write(f"Skeleton name: {skeleton_name}, Bonus to hit: {bonus_to_hit}, Bonus to damage: {bonus_to_damage}, Damage die: {damage_die}, Crit range: {crit_range}, Critical multiplier: {crit_multiplier}\n")
     messagebox.showinfo("Submitted", "Skeleton info saved successfully")
     get_skeleton_info()
 
@@ -125,12 +132,23 @@ type_var = tk.StringVar()
 type_dropdown = ttk.Combobox(root, textvariable=type_var)
 type_dropdown.place(x=50, y=70, width=150)
 
+# MORE skeletons button
+more_skeletons_button = tk.Button(root, text="MORE skeletons")
+more_skeletons_button.place(x=50, y=100, width=150)
+
 # Quantity entry
 quantity_label = tk.Label(root, text="Quantity")
 quantity_label.place(x=200, y=50)
 quantity_entry = tk.Entry(root)
 quantity_entry.place(x=200, y=70, width=50)
 quantity_entry.insert(0, "10")
+
+# Number of flankers entry
+flankers_label = tk.Label(root, text="Number of Flankers")
+flankers_label.place(x=300, y=120)
+flankers_entry = tk.Entry(root)
+flankers_entry.place(x=300, y=140, width=50)
+flankers_entry.insert(0, "0")
 
 # Attack Mods entry
 attack_mods_label = tk.Label(root, text="Attack Mods")
@@ -152,10 +170,6 @@ enemy_ac_label.place(x=500, y=50)
 enemy_ac_entry = tk.Entry(root)
 enemy_ac_entry.place(x=500, y=70, width=50)
 enemy_ac_entry.insert(0, "0")
-
-# MORE skeletons button
-more_skeletons_button = tk.Button(root, text="MORE skeletons")
-more_skeletons_button.place(x=200, y=120, width=100)
 
 # Roll button
 roll_button = tk.Button(root, text="Roll!", command=roll_action)
@@ -203,14 +217,18 @@ crit_range_label.place(x=50, y=450)
 crit_range_entry = tk.Entry(root)
 crit_range_entry.place(x=150, y=450, width=50)
 
+# Critical multiplier entry
+crit_multiplier_label = tk.Label(root, text="Critical Multiplier")
+crit_multiplier_label.place(x=50, y=480)
+crit_multiplier_entry = tk.Entry(root)
+crit_multiplier_entry.place(x=150, y=480, width=50)
+
 # Submit button for new skeleton
 submit_skeleton_button = tk.Button(root, text="Submit", command=submit_skeleton_info)
-submit_skeleton_button.place(x=150, y=480)
+submit_skeleton_button.place(x=150, y=510)
 
 # Load existing skeleton info when the program initializes
 get_skeleton_info()
-
-
 
 # Start the main event loop
 root.mainloop()
