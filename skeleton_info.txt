@@ -1,0 +1,1 @@
+Skeleton name: froggy, Bonus to hit: 1, Bonus to damage: 1, Damage die: 1d6, Crit range: 18-20
